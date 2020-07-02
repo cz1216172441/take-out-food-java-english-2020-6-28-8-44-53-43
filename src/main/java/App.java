@@ -1,3 +1,5 @@
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /*
@@ -13,8 +15,64 @@ public class App {
     }
 
     public String bestCharge(List<String> inputs) {
-        //TODO: write code here
-
-        return null;
+        List<Item> items = itemRepository.findAll();
+        List<SalesPromotion> salesPromotions = salesPromotionRepository.findAll();
+        String itemCostTemplate = "%s x %s = %s yuan\n";
+        String[] promotionTemplate = {
+                "Half price for certain dishes (%s)，saving %s yuan\n",
+                "满30减6 yuan，saving 6 yuan\n"
+        };
+        String totalCostTemplate = "Total：%s yuan\n";
+        StringBuilder res = new StringBuilder("============= Order details =============\n");
+        int originTotalCost = 0, promotion = 0;
+        List<String> promotionItems = new ArrayList<>();
+        List<String> specialItems = salesPromotions.get(1).getRelatedItems();
+        int count = 0;
+        for (String input : inputs) {
+            String[] arr = input.split(" x ");
+            for (Item item : items) {
+                if (item.getId().equals(arr[0])) {
+                    int cost = (int)(item.getPrice() * Integer.parseInt(arr[1]));
+                    res.append(String.format(itemCostTemplate, item.getName(), arr[1], cost));
+                    originTotalCost += cost;
+                    for (String specialItem : specialItems) {
+                        if (specialItem.equals(arr[0])) {
+                            if (originTotalCost - promotion < 30) {
+                                promotion += item.getPrice() * Integer.parseInt(arr[1]) / 2;
+                                promotionItems.add(specialItem);
+                            }
+                            break;
+                        }
+                    }
+                    if (originTotalCost - promotion >= 30 && count < 1) {
+                        promotion += 6;
+                        ++count;
+                    }
+                    break;
+                }
+            }
+        }
+        res.append("-----------------------------------\n");
+        if (promotion > 6) {
+            res.append("Promotion used:\n");
+            List<String> promotionNames = new ArrayList<>();
+            for (String promotionItem : promotionItems) {
+                for (Item item : items) {
+                    if (promotionItem.equals(item.getId())) {
+                        promotionNames.add(item.getName());
+                    }
+                }
+            }
+            res.append(String.format(promotionTemplate[0], String.join("，", promotionNames), promotion));
+            res.append("-----------------------------------\n");
+        }
+        if (promotion == 6) {
+            res.append("Promotion used:\n");
+            res.append(promotionTemplate[1]);
+            res.append("-----------------------------------\n");
+        }
+        res.append(String.format(totalCostTemplate, originTotalCost - promotion));
+        res.append("===================================");
+        return res.toString();
     }
 }
